@@ -22,7 +22,7 @@ void lsbEncrypt(WAVSTR* wav, BYTE* data, DWORD len, BYTE n) {
 	unsigned long sampleCounter = 0;
 	for(i=0 ; i<len ; i++) {
 		mask = initmask;
-		for(j=0 ; j<8/n ; j++) {
+		for(j=0 ; j<8 ; j+=n) {
 			byte = mask & data[i];
 			byte = byte >> (8-n-j);
 			wav->data.soundData[sampleCounter*bytesPerSample] = wav->data.soundData[sampleCounter*bytesPerSample] & removemask; // corregir esto
