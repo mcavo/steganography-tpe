@@ -1,56 +1,18 @@
+#include "../include/wavmanager.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <stdint.h> 
-
-typedef uint8_t		BYTE;
-typedef uint16_t	WORD;
-typedef uint32_t	DWORD;
-
-typedef DWORD 		CKSIZE;			// 32-bit unsigned size value
-
-typedef struct {
-    BYTE    chunkID[4];				// 'RIFF'
-    CKSIZE  chunkSize;				// File Size
-    BYTE    format[4];				// Format: 'WAVE'
-} RIFF_CK;
-
-typedef struct {
-	BYTE	chunkID[4];				// 'fmt '
-	CKSIZE	chunkSize;				// 16 para PCM.Size of rest of subchunk. /* Common fields */
-	WORD 	wFormatTag;				// Format category,i.e.:PCM = 1 (no compres.)
-	WORD 	wChannels;				// Number of channels:1, mono; 2, stereo DWORD dwSamplesPerSec; // Sampling rate: Mhz
-	DWORD 	dwAvgSamplePerSec;
-	DWORD 	dwAvgBytesPerSec;
-	WORD 	wBlockAlign;
-	WORD 	wBitsPerSample;			// 8, 16, etc.
-} FMT_CK;
-
-typedef struct {
-	BYTE 	chunkID[4];				// 'data'
-	CKSIZE 	chunkSize;
-	BYTE* 	soundData;
-} DATA_CK;
-
-typedef struct {
-	RIFF_CK riff_desc;				// MANDATORY
-	FMT_CK fmt;
-	DATA_CK data;					// Wave Data Chunk MANDATORY 
-} WAVSTR;
-
-int writeWavFile(FILE* wavfile, WAVSTR* wavstr);
-int getWavStr(FILE* wavfile, WAVSTR* wavstr);
-
-WORD littleEndianBITEArrayToWORD(BYTE buffer[2]);
-DWORD littleEndianBITEArrayToDWORD(BYTE buffer[4]);
-void WORDTolittleEndianBITEArray(WORD x, BYTE buffer[2]);
-void DWORDTolittleEndianBITEArray(DWORD x, BYTE buffer[4]);
-
 
 int
-getWavStr(FILE* wavfile, WAVSTR* wavstr) {
-	if (wavfile == NULL || wavstr == NULL)
+getWavStr(char* wavname, WAVSTR* wavstr) {
+	FILE* wavfile = fopen(wavname, "rb");
+	if (wavfile == NULL) {
+		printf("Error opening file\n");
 		return 0;
+	}
+	if (wavstr == NULL) {
+		fclose(wavfile);
+		return 0;
+	}
 	BYTE bufferWORD[2];
 	BYTE bufferDWORD[4];
 
@@ -81,17 +43,27 @@ getWavStr(FILE* wavfile, WAVSTR* wavstr) {
 	read = fread(bufferDWORD, sizeof(bufferDWORD), 1, wavfile);
 	wavstr->data.chunkSize = littleEndianBITEArrayToDWORD(bufferDWORD);
 	wavstr->data.soundData = malloc(wavstr->data.chunkSize);
-	if(wavstr->data.soundData == NULL)
+	if(wavstr->data.soundData == NULL) {
+		fclose(wavfile);
 		return 0;
+	}
 	read = fread(wavstr->data.soundData, wavstr->data.chunkSize, 1, wavfile);
+	fclose(wavfile);
 	return 1;
 
 }
 
 int
-writeWavFile(FILE* wavfile, WAVSTR* wavstr) {
-	if (wavfile == NULL || wavstr == NULL)
+writeWavFile(char* wavname, WAVSTR* wavstr) {
+	FILE* wavfile = fopen(wavname, "wb");
+	if (wavfile == NULL) {
+		printf("Error opening file\n");
 		return 0;
+	}
+	if (wavstr == NULL) {
+		fclose(wavfile);
+		return 0;
+	}
 	BYTE bufferWORD[2];
 	BYTE bufferDWORD[4];
 
@@ -120,30 +92,7 @@ writeWavFile(FILE* wavfile, WAVSTR* wavstr) {
 	DWORDTolittleEndianBITEArray(wavstr->data.chunkSize, bufferDWORD);
 	fwrite(bufferDWORD,sizeof(BYTE),sizeof(bufferDWORD),wavfile);
 	fwrite(wavstr->data.soundData,wavstr->data.chunkSize,1,wavfile);
-	return 0;
+	fclose(wavfile);
+	return 1;
 
-}
-
-DWORD
-littleEndianBITEArrayToDWORD(BYTE buffer[4]) {
-	return buffer[0] | (buffer[1]<<8) | (buffer[2]<<16) | (buffer[3]<<24);
-}
-
-WORD
-littleEndianBITEArrayToWORD(BYTE buffer[2]) {
-	return buffer[0] | (buffer[1]<<8);
-}
-
-void
-DWORDTolittleEndianBITEArray(DWORD x, BYTE buffer[4]) {
-	buffer[0] = (BYTE)(x >> 0);
-	buffer[1] = (BYTE)(x >> 8);
-	buffer[2] = (BYTE)(x >> 16);
-	buffer[3] = (BYTE)(x >> 24);
-}
-
-void
-WORDTolittleEndianBITEArray(WORD x, BYTE buffer[2]) {
-	buffer[0] = (BYTE)(x >> 0);
-	buffer[1] = (BYTE)(x >> 8);
 }
