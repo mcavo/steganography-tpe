@@ -9,7 +9,9 @@ typedef uint32_t	DWORD;
 
 WORD littleEndianBITEArrayToWORD(BYTE buffer[2]);
 DWORD littleEndianBITEArrayToDWORD(BYTE buffer[4]);
+DWORD bigEndianBITEArrayToDWORD(BYTE buffer[4]);
 void WORDTolittleEndianBITEArray(WORD x, BYTE buffer[2]);
 void DWORDTolittleEndianBITEArray(DWORD x, BYTE buffer[4]);
+void DWORDTobigEndianBITEArray(DWORD x, BYTE buffer[4]);
 
 #endif
