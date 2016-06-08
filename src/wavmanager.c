@@ -39,12 +39,25 @@ getWavStr(char* wavname, WAVSTR* wavstr) {
 	read = fread(bufferWORD, sizeof(bufferWORD), 1, wavfile);
 	wavstr->fmt.wBitsPerSample = littleEndianBITEArrayToWORD(bufferWORD);
 
+	if (wavstr->fmt.chunkSize != 16) {
+		read = fread(bufferWORD, sizeof(bufferWORD), 1, wavfile);
+		wavstr->fmt.extraParamSize = littleEndianBITEArrayToWORD(bufferWORD);
+		wavstr->fmt.extraParams = malloc(wavstr->fmt.extraParamSize);
+		if(wavstr->fmt.extraParams == NULL) {
+			fclose(wavfile);
+			return 0;
+		}
+		read = fread(wavstr->fmt.extraParams, wavstr->fmt.extraParamSize, 1, wavfile);
+	}
+
 	read = fread(wavstr->data.chunkID, sizeof(wavstr->data.chunkID), 1, wavfile);
 	read = fread(bufferDWORD, sizeof(bufferDWORD), 1, wavfile);
 	wavstr->data.chunkSize = littleEndianBITEArrayToDWORD(bufferDWORD);
 	wavstr->data.soundData = malloc(wavstr->data.chunkSize);
 	if(wavstr->data.soundData == NULL) {
 		fclose(wavfile);
+		if(wavstr->fmt.extraParams != NULL)
+			free(wavstr->fmt.extraParams);
 		return 0;
 	}
 	read = fread(wavstr->data.soundData, wavstr->data.chunkSize, 1, wavfile);

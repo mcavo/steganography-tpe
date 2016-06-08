@@ -20,6 +20,8 @@ typedef struct {
 	DWORD 	dwAvgBytesPerSec;
 	WORD 	wBlockAlign;
 	WORD 	wBitsPerSample;			// 8, 16, etc.
+	WORD	extraParamSize;			// If PCM, doesn't exist
+	BYTE* 	extraParams;			// space for extra params
 } FMT_CK;
 
 typedef struct {
@@ -30,7 +32,7 @@ typedef struct {
 
 typedef struct {
 	RIFF_CK riff_desc;				// MANDATORY
-	FMT_CK fmt;
+	FMT_CK 	fmt;					// MANDATORY
 	DATA_CK data;					// Wave Data Chunk MANDATORY 
 } WAVSTR;
 
