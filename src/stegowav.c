@@ -10,9 +10,11 @@
 
 EMBEDSTR* parseEmbedStr(int argc, char **argv);
 EXTRACTSTR* parseExtractStr(int argc, char **argv);
+int validEmbedStr(EMBEDSTR* emb);
+int validExtractStr(EXTRACTSTR* emb);
 
 EMBEDSTR* parseEmbedStr(int argc, char **argv) {
-	EMBEDSTR* emb = calloc(sizeof(EMBEDSTR),sizeof(char));
+	EMBEDSTR* emb = calloc(sizeof(EMBEDSTR),1);
 	int i;
 	for (i = 2 ; i < argc ; i++) {
 		if (argv[i][0] == '-') {
@@ -25,7 +27,7 @@ EMBEDSTR* parseEmbedStr(int argc, char **argv) {
 
 			} else if (strcmp(argv[i],"-p")==0) {
 
-				emb->wav = malloc(sizeof(WAVSTR));
+				emb->wav = calloc(sizeof(WAVSTR),1);
 				printf("%s\n", "Parsing wav...");
 				getWavStr(argv[i+1],emb->wav);
 
@@ -100,6 +102,14 @@ EXTRACTSTR* parseExtractStr(int argc, char **argv) {
 	
 }
 
+// int validEmbedStr(EMBEDSTR* emb) {
+
+// }
+
+// int validExtractStr(EXTRACTSTR* emb) {
+	
+// }
+
 
 /*********************/
 /*        MAIN       */
@@ -107,18 +117,28 @@ EXTRACTSTR* parseExtractStr(int argc, char **argv) {
 
 int main(int argc, char **argv)
 {
-	int i;
+	int out;
 
 	if (strcmp(argv[1],"-embed")==0) {
 
 		EMBEDSTR* embed = parseEmbedStr(argc,argv);
-		lsbEncryptWrapper(embed);
+		if ( embed->tech == LSB1 || embed->tech == LSB4 )
+			out = lsbEncryptWrapper(embed);
+		else if ( embed->tech == LSBE ) 
+			out = lsbeEncryptWrapper(embed);
+		else
+			printf("%s\n", "Error:");
 
 
 	} else if(strcmp(argv[1],"-extract")==0) {
 
 		EXTRACTSTR* extract = parseExtractStr(argc,argv);
-		lsbDecryptWrapper(extract);
+		if ( extract->tech == LSB1 || extract->tech == LSB4 )
+			out = lsbDecryptWrapper(extract);
+		else if ( extract->tech == LSBE ) 
+			out = lsbeDecryptWrapper(extract);
+		else
+			printf("%s\n", "Error:");
 
 	} else {
 		printf("Error: invalid input. Parameters -embed or -extract expected.\n");
