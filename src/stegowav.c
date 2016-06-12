@@ -226,6 +226,7 @@ int main(int argc, char **argv)
 			out = lsbeEncryptWrapper(embed);
 		else
 			printf("%s\n", "Error:");
+		freeEmbedStr(embed);
 
 
 	} else if(strcmp(argv[1],"-extract")==0) {
@@ -237,6 +238,7 @@ int main(int argc, char **argv)
 			out = lsbeDecryptWrapper(extract);
 		else
 			printf("%s\n", "Error:");
+		freeExtractStr(extract);
 
 	} else {
 		printf("Error: invalid input. Parameters -embed or -extract expected.\n");

@@ -197,7 +197,10 @@ int lsbeDecryptWrapper(EXTRACTSTR* ext) {
 		}
 		fileLen = bigEndianBITEArrayToDWORD(bufferFile);
 		bufferFile = bufferFile + sizeof(fileLen);
-		bufferExtension = bufferFile + fileLen;
+		for (i=sizeof(fileLen) ; bufferFile[i]!=0 ; i++) {
+			bufferExtension[i] = bufferFile[i];
+		}
+		bufferExtension[i] = 0;
 
 	}
 

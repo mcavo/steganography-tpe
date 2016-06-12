@@ -25,8 +25,8 @@ typedef struct {
 	char* pass;
 } CIPHERSTR;
 
-DWORD encrypt (CIPHERSTR* cipherstr, BYTE* plaindata, DWORD len, BYTE* cipherdata);
-DWORD decrypt (CIPHERSTR* cipherstr, BYTE* cipherdata, DWORD len, BYTE* plaindata);
+int encrypt (CIPHERSTR* cipherstr, BYTE* plaindata, DWORD len, BYTE* cipherdata);
+int decrypt (CIPHERSTR* cipherstr, BYTE* cipherdata, DWORD len, BYTE* plaindata);
 
 void freeCipherStr(CIPHERSTR* cipher);
 
