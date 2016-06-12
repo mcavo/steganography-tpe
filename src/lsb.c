@@ -238,7 +238,7 @@ int lsbDecryptWrapper(EXTRACTSTR* ext) {
 	BYTE bufferDWORD[4];
 	unsigned long i,j;
 	BYTE bufferExtension[30];
-	DWORD len;
+	DWORD len, fileLen;
 	unsigned long bytesPerSample = ext->wav->fmt.wBitsPerSample / 8;
 	unsigned long sampleCounter = 1;
 	for(i=0 ; i<4; i++) {
@@ -251,8 +251,8 @@ int lsbDecryptWrapper(EXTRACTSTR* ext) {
 		}
 	}
 	len = bigEndianBITEArrayToDWORD(bufferDWORD);
-	BYTE bufferFile[len];
-	BYTE bufferFile[len];
+	BYTE bufferFile[len+20];
+	BYTE bufferData[len+20];
 	for(i=0 ; i<len; i++)
 		bufferData[i] = 0;
 	for(i=0 ; i<len; i++) {
@@ -283,16 +283,24 @@ int lsbDecryptWrapper(EXTRACTSTR* ext) {
 
 
 	} else {
+		FILE* fil = fopen("hola.txt","wb");
+		printf("len: %u\n", len);
+		fwrite(bufferData,sizeof(BYTE),len,fil);
+		fclose(fil);
+		printf("%s\n", "Holis, llegue a la parte del cifrado");
 		int error = decrypt (ext->cipher, bufferData, len, bufferFile);
+		printf("%s\n", "Descifre!");
 		if (error) {
 			return !OK;
 		}
 		fileLen = bigEndianBITEArrayToDWORD(bufferFile);
-		memcpy(bufferFile + sizeof(fileLen), bufferFile, fileLen);
-		
-		for (j=sizeof(fileLen) ; bufferFile[j]!=0 ; i++) {
-			bufferExtension[i] = bufferFile[j];
+		printf("fileLen: %u\n", fileLen);
+		memcpy(bufferFile, bufferFile + 4, fileLen);
+		printf("%s\n", "Pase el memcpy");
+		for (j=sizeof(fileLen) ; bufferFile[j]!=0 ; j++) {
+			bufferExtension[j] = bufferFile[j];
 		}
+		printf("%s\n", "Chau!");
 		bufferExtension[j] = 0;
 
 	}
