@@ -32,14 +32,14 @@ int decrypt (CIPHERSTR* cipher, BYTE* cipherdata, DWORD len, BYTE* plaindata) {
 		case AES128: break;
 		case AES192: 
 			EVP_BytesToKey(EVP_aes_192_cbc(), EVP_md5(), NULL, cipher->pass, strlen(cipher->pass),1, key, iv);
+			EVP_CIPHER_CTX_init(&ctx);
+			EVP_EncryptInit_ex(&ctx, EVP_aes_192_cbc(), NULL, key, iv); 
 		break;
 		case AES256: break;
 		default:
 			return 1;
 			break;
 	}
-	EVP_CIPHER_CTX_init(&ctx);
-	EVP_EncryptInit_ex(&ctx, function(), NULL, key, iv); 
 	EVP_EncryptUpdate(&ctx, out, &outl, cipherdata, len); 
 	EVP_EncryptFinal_ex(&ctx, out + outl, &templ);
 	outl +=templ;
