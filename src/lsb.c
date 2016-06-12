@@ -134,7 +134,7 @@ int lsbeDecryptWrapper(EXTRACTSTR* ext) {
 	unsigned long i, j, k;	
 	BYTE byte, mask;
 	BYTE initmask = 0b10000000;
-	DWORD len;
+	DWORD len, fileLen;
 	mask = initmask;
 	bufferDWORD[0] = 0;
 	for( i=0, j=0, k=0 ; i<ext->wav->data.chunkSize && j < 4; i++ ) {
@@ -154,45 +154,63 @@ int lsbeDecryptWrapper(EXTRACTSTR* ext) {
 	}
 
 	len = bigEndianBITEArrayToDWORD(bufferDWORD);
+	BYTE bufferData[len];
 	BYTE bufferFile[len];
-	bufferFile[0] = 0;
+	bufferData[0] = 0;
 	for( j=0, k=0 ; i<ext->wav->data.chunkSize && j < len; i++) {
 		if ( ext->wav->data.soundData[i] >= 0b11111110 ) {
 			byte = ext->wav->data.soundData[i] & 0b00000001;
 			byte = byte << (7 - k);
-			bufferFile[j] = bufferFile[j] | byte;
+			bufferData[j] = bufferData[j] | byte;
 			k++;
 			if ( k == 8 ) {
 				k = 0;
 				j++;
 				if (j < len - 1)
-					bufferFile[j] = 0;
+					bufferData[j] = 0;
 			}
 		}
 	}	
 
-	j = 0;
-	do {
-		bufferExtension[j] = 0;
-		for ( k=0 ; i<ext->wav->data.chunkSize && k < 8 ; i++ ) {
-			if ( ext->wav->data.soundData[i] >= 0b11111110 ) {
-				byte = ext->wav->data.soundData[i] & 0b00000001;
-				byte = byte << (7 - k);
-				bufferExtension[j] = bufferExtension[j] | byte;
-				k++;
+	if (ext->cipher == NULL) {
+
+		bufferFile = bufferData;
+		fileLen = len;
+
+		j = 0;
+		do {
+			bufferExtension[j] = 0;
+			for ( k=0 ; i<ext->wav->data.chunkSize && k < 8 ; i++ ) {
+				if ( ext->wav->data.soundData[i] >= 0b11111110 ) {
+					byte = ext->wav->data.soundData[i] & 0b00000001;
+					byte = byte << (7 - k);
+					bufferExtension[j] = bufferExtension[j] | byte;
+					k++;
+				}
 			}
+		} while (i<ext->wav->data.chunkSize && j<30 && bufferExtension[j++]!=0);
+
+	} else {
+		int error = decrypt (ext->cipher, bufferData, len, bufferFile);
+		if (error) {
+			return !OK;
 		}
-	} while (i<ext->wav->data.chunkSize && j<30 && bufferExtension[j++]!=0);
+		fileLen = bigEndianBITEArrayToDWORD(bufferFile);
+		bufferFile = bufferFile + sizeof(fileLen);
+		bufferExtension = bufferFile + fileLen;
+
+	}
 
 	char* filename = malloc(strlen(ext->outfile) + j);
 	if( filename == NULL ) {
 		return OUT_OF_MEMORY;
 	}
+
 	memcpy(filename, ext->outfile, strlen(ext->outfile));
 	memcpy(filename + strlen(ext->outfile), bufferExtension, j);
 
 	FILE* fptr = fopen(filename,"wb");
-	fwrite(bufferFile,sizeof(BYTE),len,fptr);
+	fwrite(bufferFile,sizeof(BYTE),fileLen,fptr);
 	fclose(fptr);
 	free(filename);
 	return OK;
@@ -281,4 +299,26 @@ DWORD getLen(FILE* file) {
 	len = ftell(file);
 	rewind(file);
 	return len;
+}
+
+void freeEmbedStr(EMBEDSTR* emb) {
+	if (emb == NULL)
+		return;
+	if (emb->infile != NULL)
+		free(emb->infile);
+	if (emb->stegowav != NULL)
+		free(emb->stegowav);
+	freeWavStr(emb->wav);
+	freeCipherStr(emb->cipher);
+	free(emb);
+}
+
+void freeExtractStr(EXTRACTSTR* ext) {
+	if (ext == NULL)
+		return;
+	if (ext->outfile != NULL)
+		free(ext->outfile);
+	freeWavStr(ext->wav);
+	freeCipherStr(ext->cipher);
+	free(ext);
 }

@@ -109,3 +109,14 @@ writeWavFile(char* wavname, WAVSTR* wavstr) {
 	return 1;
 
 }
+
+void freeWavStr(WAVSTR* wav) {
+	if (wav == NULL) {
+		return;
+	}
+	if (wav->fmt.extraParams != NULL)
+		free(wav->fmt.extraParams);
+	if (wav->data.soundData != NULL)
+		free(wav->data.soundData);
+	free(wav);
+}
