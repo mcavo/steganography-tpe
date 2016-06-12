@@ -197,7 +197,7 @@ int lsbeDecryptWrapper(EXTRACTSTR* ext) {
 		}
 		fileLen = bigEndianBITEArrayToDWORD(bufferFile);
 		memcpy(bufferFile + sizeof(fileLen), bufferFile, fileLen);
-		
+
 		for (i=sizeof(fileLen) ; bufferFile[i]!=0 ; i++) {
 			bufferExtension[i] = bufferFile[i];
 		}
@@ -252,38 +252,68 @@ int lsbDecryptWrapper(EXTRACTSTR* ext) {
 	}
 	len = bigEndianBITEArrayToDWORD(bufferDWORD);
 	BYTE bufferFile[len];
+	BYTE bufferFile[len];
 	for(i=0 ; i<len; i++)
-		bufferFile[i] = 0;
+		bufferData[i] = 0;
 	for(i=0 ; i<len; i++) {
-		bufferFile[i]=0;
+		bufferData[i]=0;
 		for(j=0; j<8 ; j+=n){
 			byte = ext->wav->data.soundData[sampleCounter*bytesPerSample-1] & removemask;
 			byte = byte << (8-n-j);
-			bufferFile[i] = bufferFile[i] | byte;
+			bufferData[i] = bufferData[i] | byte;
 			sampleCounter++;
 		}
 	}
-	i=0;
-	do {
-		bufferExtension[i] = 0;
-		for(j=0; j<8 ; j+=n){
-			byte = ext->wav->data.soundData[sampleCounter*bytesPerSample-1] & removemask;
-			byte = byte << (8-n-j);
-			bufferExtension[i] = bufferExtension[i] | byte;
-			sampleCounter++;
+
+	if (ext->cipher == NULL) {
+
+		memcpy(bufferFile, bufferData, len);
+		fileLen = len;
+
+		i=0;
+		do {
+			bufferExtension[i] = 0;
+			for(j=0; j<8 ; j+=n){
+				byte = ext->wav->data.soundData[sampleCounter*bytesPerSample-1] & removemask;
+				byte = byte << (8-n-j);
+				bufferExtension[i] = bufferExtension[i] | byte;
+				sampleCounter++;
+			}
+		} while( i<30 && bufferExtension[i++]!=0);
+
+
+	} else {
+		int error = decrypt (ext->cipher, bufferData, len, bufferFile);
+		if (error) {
+			return !OK;
 		}
-	} while( i<30 && bufferExtension[i++]!=0);
+		fileLen = bigEndianBITEArrayToDWORD(bufferFile);
+		memcpy(bufferFile + sizeof(fileLen), bufferFile, fileLen);
+		
+		for (j=sizeof(fileLen) ; bufferFile[j]!=0 ; i++) {
+			bufferExtension[i] = bufferFile[j];
+		}
+		bufferExtension[j] = 0;
+
+	}
+
+
 	char* filename = malloc(strlen(ext->outfile) + i);
 	if( filename == NULL ) {
 		return OUT_OF_MEMORY;
 	}
+
 	memcpy(filename, ext->outfile, strlen(ext->outfile));
 	memcpy(filename + strlen(ext->outfile), bufferExtension, i);
 
 	FILE* fptr = fopen(filename,"wb");
-	fwrite(bufferFile,sizeof(BYTE),len,fptr);
+	fwrite(bufferFile,sizeof(BYTE),fileLen,fptr);
 	fclose(fptr);
 	return OK;
+
+
+
+
 
 }
 
