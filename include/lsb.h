@@ -31,10 +31,10 @@ typedef struct {
 	CIPHERSTR* cipher;
 } EXTRACTSTR;
 
-int lsbEncryptWrapper(EMBEDSTR* emb);
-int lsbeEncryptWrapper(EMBEDSTR* emb);
-int lsbDecryptWrapper(EXTRACTSTR* ext);
-int lsbeDecryptWrapper(EXTRACTSTR* ext);
+int lsbEmbedWrapper(EMBEDSTR* emb);
+int lsbeEmbedWrapper(EMBEDSTR* emb);
+int lsbExtractWrapper(EXTRACTSTR* ext);
+int lsbeExtractWrapper(EXTRACTSTR* ext);
 
 void freeEmbedStr(EMBEDSTR* emb);
 void freeExtractStr(EXTRACTSTR* ext);

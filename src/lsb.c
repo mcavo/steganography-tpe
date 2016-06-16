@@ -7,7 +7,7 @@ int getextensionindex(char* word);
 DWORD getLen(FILE* file);
 
 //LSB1 & LSB4
-void lsbEncrypt(WAVSTR* wav, BYTE* data, DWORD len, BYTE n) {
+void lsbEmbed(WAVSTR* wav, BYTE* data, DWORD len, BYTE n) {
 	BYTE initmask, removemask;
 	if (n == 1) {
 		initmask = 0b10000000;
@@ -33,7 +33,7 @@ void lsbEncrypt(WAVSTR* wav, BYTE* data, DWORD len, BYTE n) {
 	}
 }
 
-void lsbeEncrypt(WAVSTR* wav, BYTE* data, DWORD len) {
+void lsbeEmbed(WAVSTR* wav, BYTE* data, DWORD len) {
 	unsigned long i, j, k;	
 	BYTE byte, mask;
 	BYTE initmask = 0b10000000;
@@ -52,50 +52,76 @@ void lsbeEncrypt(WAVSTR* wav, BYTE* data, DWORD len) {
 				mask = mask >> 1;
 				k++;
 			}
-			
 		}
 	}
 }
 
-int lsbEncryptWrapper(EMBEDSTR* emb) {
-	int i, n;
+int lsbEmbedWrapper(EMBEDSTR* emb) {
+	int n, len;
+	unsigned long bytesPerSample = emb->wav->fmt.wBitsPerSample / 8;
 	if (emb->tech == LSB1)
 		n = 1;
 	else
 		n = 4;
-	unsigned long bytesPerSample = emb->wav->fmt.wBitsPerSample / 8;
+
 	FILE* file = fopen(emb->infile, "rb");
 	DWORD filelen = getLen(file);
+
 	int extindex = getextensionindex(emb->infile);
-	BYTE bufferDWORD[4];
-	DWORDTobigEndianBITEArray(filelen, bufferDWORD);
-	if ( (emb->wav->data.chunkSize / bytesPerSample)  < (filelen + 4 + strlen(emb->infile + extindex) + 1) * (8/n))
+	int extlen = strlen(emb->infile + extindex) + 1;
+
+	int datalen = sizeof(DWORD) + filelen + extlen;
+
+	if ( (emb->wav->data.chunkSize / bytesPerSample)  < datalen * (8/n))
 		return NOT_ENOUGH_SPACE;
-	int datalen = filelen + 4 + strlen(emb->infile + extindex) + 1;
+
 	BYTE* data = malloc(datalen);
+	BYTE* embeddata;
+
 	if (data == NULL) {
 		fclose(file);
 		return OUT_OF_MEMORY;
 	}
-	memcpy(data, bufferDWORD, sizeof(bufferDWORD));
-	int read = 0;
-	read = fread(data + sizeof(bufferDWORD), filelen, 1, file);
-	memcpy(data + sizeof(bufferDWORD) + filelen, emb->infile + extindex, strlen(emb->infile + extindex) + 1);
-	lsbEncrypt(emb->wav, data, filelen + 4 + strlen(emb->infile + extindex) + 1, n);
-	free(data);
+
+	DWORDTobigEndianBITEArray(filelen, data);
+
+	fread(data + sizeof(DWORD), filelen, 1, file);
 	fclose(file);
+
+	memcpy(data + sizeof(DWORD) + filelen, emb->infile + extindex, extlen);
+
+	if (emb->cipher == NULL) {
+
+		embeddata = data;
+		len = datalen;
+
+	} else {
+
+		embeddata = malloc(sizeof(DWORD) + datalen + CIPHER_BLOCK_SIZE);
+		if (data == NULL) {
+			free(data);
+			return OUT_OF_MEMORY;
+		}
+
+		encrypt(emb->cipher, data, datalen, embeddata, &len);
+
+		free(data);
+
+	}
+
+	lsbEmbed(emb->wav, embeddata, len, n);
+	free(embeddata);
 	writeWavFile(emb->stegowav, emb->wav);
 	
 	return OK;
 }
 
-int lsbeEncryptWrapper(EMBEDSTR* emb) {
+int lsbeEmbedWrapper(EMBEDSTR* emb) {
 
 	FILE* file = fopen(emb->infile, "rb");
 	DWORD filelen = getLen(file);
 	int extindex = getextensionindex(emb->infile);
-	BYTE bufferDWORD[4];
-	DWORDTobigEndianBITEArray(filelen, bufferDWORD);
+	DWORD extlen = strlen(emb->infile + extindex) + 1;
 	unsigned long i;
 	unsigned long availableBytes=0;
 
@@ -105,7 +131,8 @@ int lsbeEncryptWrapper(EMBEDSTR* emb) {
 		}
 	}
 
-	int datalen = filelen + 4 + strlen(emb->infile + extindex) + 1;
+	DWORD datalen = filelen + sizeof(DWORD) + extlen;
+	DWORD len;
 
 	if ( availableBytes <  datalen * 8 ) {
 		fclose(file);
@@ -114,21 +141,41 @@ int lsbeEncryptWrapper(EMBEDSTR* emb) {
 
 
 	BYTE* data = malloc(datalen);
+	BYTE* embeddata;
+	DWORDTobigEndianBITEArray(filelen, data);
 
-	memcpy(data, bufferDWORD, sizeof(bufferDWORD));
-	int read = 0;
-	read = fread(data + sizeof(bufferDWORD), filelen, 1, file);
-	memcpy(data + sizeof(bufferDWORD) + filelen, emb->infile + extindex, strlen(emb->infile + extindex) + 1);
-	lsbeEncrypt(emb->wav, data, datalen);
-	free(data);
+	fread(data + sizeof(DWORD), filelen, 1, file);
 	fclose(file);
+
+	memcpy(data + sizeof(DWORD) + filelen, emb->infile + extindex, extlen);
+
+	if (emb->cipher == NULL) {
+
+		embeddata = data;
+		len = datalen;
+
+	} else {
+
+		embeddata = malloc(sizeof(DWORD) + datalen + CIPHER_BLOCK_SIZE);
+		if (data == NULL) {
+			free(data);
+			return OUT_OF_MEMORY;
+		}
+
+		encrypt(emb->cipher, data, datalen, embeddata, &len);
+
+		free(data);
+
+	}
+
+	lsbeEmbed(emb->wav, embeddata, len);
+	free(embeddata);
 	writeWavFile(emb->stegowav, emb->wav);
 
 	return OK;
-
 }
 
-int lsbeDecryptWrapper(EXTRACTSTR* ext) {
+int lsbeExtractWrapper(EXTRACTSTR* ext) {
 	BYTE bufferExtension[30];
 	BYTE bufferDWORD[4];
 	unsigned long i, j, k;	
@@ -146,7 +193,7 @@ int lsbeDecryptWrapper(EXTRACTSTR* ext) {
 			if ( k == 8 ) {
 				k = 0;
 				j++;
-				if (j<3)
+				if (j<4)
 					bufferDWORD[j] = 0;
 
 			}
@@ -166,7 +213,7 @@ int lsbeDecryptWrapper(EXTRACTSTR* ext) {
 			if ( k == 8 ) {
 				k = 0;
 				j++;
-				if (j < len - 1)
+				if (j < len)
 					bufferData[j] = 0;
 			}
 		}
@@ -176,7 +223,6 @@ int lsbeDecryptWrapper(EXTRACTSTR* ext) {
 
 		memcpy(bufferFile, bufferData, len);
 		fileLen = len;
-
 		j = 0;
 		do {
 			bufferExtension[j] = 0;
@@ -196,10 +242,9 @@ int lsbeDecryptWrapper(EXTRACTSTR* ext) {
 			return !OK;
 		}
 		fileLen = bigEndianBITEArrayToDWORD(bufferFile);
-		memcpy(bufferFile + sizeof(fileLen), bufferFile, fileLen);
-
-		for (i=sizeof(fileLen) ; bufferFile[i]!=0 ; i++) {
-			bufferExtension[i] = bufferFile[i];
+		memcpy(bufferFile, bufferFile+4, fileLen);
+		for (i=0 ; bufferFile[i+fileLen]!=0 ; i++) {
+			bufferExtension[i] = bufferFile[i+fileLen];
 		}
 		bufferExtension[i] = 0;
 
@@ -221,8 +266,7 @@ int lsbeDecryptWrapper(EXTRACTSTR* ext) {
 
 }
 
-int lsbDecryptWrapper(EXTRACTSTR* ext) {
-	/* Get len */
+int lsbExtractWrapper(EXTRACTSTR* ext) {
 	BYTE initmask, removemask;
 	int n;
 	if (ext->tech == LSB1) {
@@ -251,8 +295,8 @@ int lsbDecryptWrapper(EXTRACTSTR* ext) {
 		}
 	}
 	len = bigEndianBITEArrayToDWORD(bufferDWORD);
-	BYTE bufferFile[len+20];
-	BYTE bufferData[len+20];
+	BYTE bufferFile[len];
+	BYTE bufferData[len];
 	for(i=0 ; i<len; i++)
 		bufferData[i] = 0;
 	for(i=0 ; i<len; i++) {
@@ -283,24 +327,14 @@ int lsbDecryptWrapper(EXTRACTSTR* ext) {
 
 
 	} else {
-		FILE* fil = fopen("hola.txt","wb");
-		printf("len: %u\n", len);
-		fwrite(bufferData,sizeof(BYTE),len,fil);
-		fclose(fil);
-		printf("%s\n", "Holis, llegue a la parte del cifrado");
 		int error = decrypt (ext->cipher, bufferData, len, bufferFile);
-		printf("%s\n", "Descifre!");
 		if (error) {
 			return !OK;
 		}
 		fileLen = bigEndianBITEArrayToDWORD(bufferFile);
-		printf("fileLen: %u\n", fileLen);
-		memcpy(bufferFile, bufferFile + 4, fileLen);
-		printf("%s\n", "Pase el memcpy");
-		for (j=sizeof(fileLen) ; bufferFile[j]!=0 ; j++) {
-			bufferExtension[j] = bufferFile[j];
+		for (j=0 ; bufferFile[j+fileLen+4]!=0 ; j++) {
+			bufferExtension[j] = bufferFile[j+fileLen+4];
 		}
-		printf("%s\n", "Chau!");
 		bufferExtension[j] = 0;
 
 	}
@@ -315,13 +349,9 @@ int lsbDecryptWrapper(EXTRACTSTR* ext) {
 	memcpy(filename + strlen(ext->outfile), bufferExtension, i);
 
 	FILE* fptr = fopen(filename,"wb");
-	fwrite(bufferFile,sizeof(BYTE),fileLen,fptr);
+	fwrite(bufferFile+4,sizeof(BYTE),fileLen,fptr);
 	fclose(fptr);
 	return OK;
-
-
-
-
 
 }
 

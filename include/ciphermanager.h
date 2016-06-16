@@ -17,7 +17,7 @@
 #define OFB					3
 #define CBC					4
 
-#define KEY_SIZE			16
+#define CIPHER_BLOCK_SIZE	8
 
 typedef struct {
 	unsigned char alg;
@@ -25,7 +25,7 @@ typedef struct {
 	char* pass;
 } CIPHERSTR;
 
-int encrypt (CIPHERSTR* cipherstr, BYTE* plaindata, DWORD len, BYTE* cipherdata);
+int encrypt (CIPHERSTR* cipherstr, BYTE* plaindata, DWORD len, BYTE* cipherdata, DWORD* cipherdatalen);
 int decrypt (CIPHERSTR* cipherstr, BYTE* cipherdata, DWORD len, BYTE* plaindata);
 
 void freeCipherStr(CIPHERSTR* cipher);

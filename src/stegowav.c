@@ -221,9 +221,9 @@ int main(int argc, char **argv)
 
 		EMBEDSTR* embed = parseEmbedStr(argc,argv);
 		if ( embed->tech == LSB1 || embed->tech == LSB4 )
-			out = lsbEncryptWrapper(embed);
+			out = lsbEmbedWrapper(embed);
 		else if ( embed->tech == LSBE ) 
-			out = lsbeEncryptWrapper(embed);
+			out = lsbeEmbedWrapper(embed);
 		else
 			printf("%s\n", "Error:");
 		freeEmbedStr(embed);
@@ -233,9 +233,9 @@ int main(int argc, char **argv)
 
 		EXTRACTSTR* extract = parseExtractStr(argc,argv);
 		if ( extract->tech == LSB1 || extract->tech == LSB4 )
-			out = lsbDecryptWrapper(extract);
+			out = lsbExtractWrapper(extract);
 		else if ( extract->tech == LSBE ) 
-			out = lsbeDecryptWrapper(extract);
+			out = lsbeExtractWrapper(extract);
 		else
 			printf("%s\n", "Error:");
 		freeExtractStr(extract);
@@ -254,4 +254,6 @@ gcc -o stegowav stegowav.c lsb.c bytesmanager.c wavmanager.c ciphermanager.c
 ./stegowav -extract -out "data/test/funT4" -p "data/AnaTest/funT4.wav" -steg LSB4
 ./stegowav -extract -out "data/test/funTE" -p "data/AnaTest/funTE.wav" -steg LSBE
 ./stegowav -extract -out "data/test/funT1E" -p "data/AnaTest/funT1E.wav" -steg LSB1 -a "aes192" -m "cbc" -pass "oculto"
+./stegowav -embed -out "data/test/testwav2.wav" -in "data/data.txt" -p "data/testwav.wav" -steg LSB1 -a "aes192" -m "cbc" -pass "123456"
+./stegowav -extract -out "data/test/data" -p "data/test/testwav2.wav" -steg LSB1 -a "aes192" -m "cbc" -pass "123456"
 */
