@@ -200,6 +200,7 @@ int lsbeExtractWrapper(EXTRACTSTR* ext) {
 	}
 
 	len = bigEndianBITEArrayToDWORD(bufferDWORD);
+	printf("len: %u\n", len);
 	BYTE bufferData[len];
 	BYTE bufferFile[len];
 	bufferData[0] = 0;
@@ -322,24 +323,23 @@ int lsbExtractWrapper(EXTRACTSTR* ext) {
 		} while( i<30 && bufferExtension[i-1]!=0);
 
 	} else {
-		printf("%s\n", "hola");
 		int error = decrypt (ext->cipher, bufferData, len, bufferFile);
-		if (error) {
-			printf("%s\n", "hola2");
+		if (error != OK) {
 			return !OK;
 		}
-		printf("%s\n", "hola3");
 		filelen = bigEndianBITEArrayToDWORD(bufferFile);
 		printf("%u\n", filelen);
-		printf("%s\n", bufferExtension);
-		printf("%u\n", i + filelen + sizeof(DWORD));
 		for (i=0 ; bufferFile[i + filelen + sizeof(DWORD)] != 0 ; i++) {
 			bufferExtension[i] = bufferFile[i + filelen + sizeof(DWORD)];
+			printf("%c", bufferExtension[i]);
 		}
 		bufferExtension[i++] = 0;
+		printf("\n%u\n", i + filelen + sizeof(DWORD));
 
+		for(j=0 ; j<filelen ; j++) {
+			bufferFile[j] = bufferFile[j+4];
+		}
 	}
-	printf("%s\n", "");
 
 	char* filename = malloc(strlen(ext->outfile) + i);
 	memcpy(filename, ext->outfile, strlen(ext->outfile));

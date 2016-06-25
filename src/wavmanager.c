@@ -10,7 +10,6 @@ getWavStr(char* wavname, WAVSTR* wavstr) {
 		return 1;
 	}
 	if (wavstr == NULL) {
-		printf("%s\n", "WAV NULL");
 		fclose(wavfile);
 		return 1;
 	}
