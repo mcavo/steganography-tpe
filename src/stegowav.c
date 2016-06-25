@@ -29,7 +29,6 @@ EMBEDSTR* parseEmbedStr(int argc, char **argv) {
 				if (f==NULL) {
 					printf("%s %s\n", "File doesn't exist:", argv[i+1]);
 					freeEmbedStr(emb);
-					fclose(f);
 					return NULL;
 				}
 				fclose(f);
@@ -43,22 +42,20 @@ EMBEDSTR* parseEmbedStr(int argc, char **argv) {
 					printf("%s%s%s\n", "Parameter invalid: \"", argv[i+1], "\", MUST be a wav file.");
 					freeEmbedStr(emb);
 					return NULL;
-				} else {
-					f = fopen(argv[i+1], "rb");
-					if (f==NULL) {
-						printf("%s %s\n", "File doesn't exist:", argv[i+1]);
-						freeEmbedStr(emb);
-						fclose(f);
-						return NULL;
-					}
-					fclose(f);
 				}
+				f = fopen(argv[i+1], "rb");
+				if (f==NULL) {
+					printf("%s %s\n", "File doesn't exist:", argv[i+1]);
+					freeEmbedStr(emb);
+					return NULL;
+				}
+				fclose(f);
 				emb->wav = calloc(sizeof(WAVSTR),1);
 				if( (error = getWavStr(argv[i+1],emb->wav)) != OK ) {
-
+					freeEmbedStr(emb);
+					printf("%s\n", "Problemas levantando el wav");
+					return NULL;
 				}
-
-
 
 			} else if (strcmp(argv[i],"-out")==0) {
 
@@ -66,14 +63,14 @@ EMBEDSTR* parseEmbedStr(int argc, char **argv) {
 					printf("%s%s%s\n", "Parameter invalid: \"", argv[i+1], "\", MUST be a wav file.");
 					freeEmbedStr(emb);
 					return NULL;
-				} else {
-					f = fopen(argv[i+1], "rb");
-					if (f==NULL) {
-						freeEmbedStr(emb);
-						fclose(f);
-						return NULL;
-					}
+				} 
+				
+				f = fopen(argv[i+1], "rb");
+				if (f!=NULL) {
+					printf("%s %s\n", "File already exist:", argv[i+1]);
+					freeEmbedStr(emb);
 					fclose(f);
+					return NULL;
 				}
 
 				int len = strlen(argv[i+1]);
@@ -81,14 +78,14 @@ EMBEDSTR* parseEmbedStr(int argc, char **argv) {
 				memcpy(emb->stegowav,argv[i+1],len+1);
 
 			} else if (strcmp(argv[i],"-steg")==0) {
-				if (strcmp(argv[i+1],"lsb1")==0) {
+				if (strcmp(argv[i+1],"LSB1")==0) {
 					emb->tech = LSB1;
-				} else if (strcmp(argv[i+1],"lsb4")==0) {
+				} else if (strcmp(argv[i+1],"LSB4")==0) {
 					emb->tech = LSB4;
-				} else if (strcmp(argv[i+1],"lsbE")==0) {
+				} else if (strcmp(argv[i+1],"LSBE")==0) {
 					emb->tech = LSBE;
 				} else {
-					printf("%s%s%s\n", "Invalid embed technique: \"", argv[i+1], "\", MUST be [\"lsb1\"|\"lsb4\"|\"lsbe\"].");
+					printf("%s%s%s\n", "Invalid embed technique: \"", argv[i+1], "\", MUST be [\"LSB1\"|\"LSB4\"|\"LSBe\"].");
 					freeEmbedStr(emb);
 					return NULL;
 				}
@@ -184,15 +181,15 @@ EXTRACTSTR* parseExtractStr(int argc, char **argv) {
 				memcpy(ext->outfile,argv[i+1],len+1);
 
 			} else if (strcmp(argv[i],"-steg")==0) {
-				if (strcmp(argv[i+1],"lsb1")==0) {
+				if (strcmp(argv[i+1],"LSB1")==0) {
 					ext->tech = LSB1;
-				} else if (strcmp(argv[i+1],"lsb4")==0) {
+				} else if (strcmp(argv[i+1],"LSB4")==0) {
 					ext->tech = LSB4;
-				} else if (strcmp(argv[i+1],"lsbE")==0) {
+				} else if (strcmp(argv[i+1],"LSBE")==0) {
 					ext->tech = LSBE;
 				} else {
 					freeExtractStr(ext);
-					printf("%s\n", "mal lsb");
+					printf("%s\n", "mal LSB");
 					return NULL;
 				}
 			} else if (strcmp(argv[i],"-a")==0) {
@@ -263,7 +260,7 @@ int missingEmbedStrParameters(EMBEDSTR* emb) {
 
 	if (emb->tech == 0) {
 		ret = 1;
-		printf("%s\n", "Parameter missing: -steg [\"lsb1\"|\"lsb4\"|\"lsbe\"]");
+		printf("%s\n", "Parameter missing: -steg [\"LSB1\"|\"LSB4\"|\"LSBe\"]");
 		return 1;
 	}
 
@@ -322,21 +319,23 @@ int main(int argc, char **argv)
 	if (strcmp(argv[1],"-embed")==0) {
 
 		EMBEDSTR* embed = parseEmbedStr(argc,argv);
-		if ( embed->tech == LSB1 || embed->tech == LSB4 )
-			out = lsbEmbedWrapper(embed);
-		else 
-			out = lsbeEmbedWrapper(embed);
-		freeEmbedStr(embed);
-
+		if(embed != NULL) {
+			if ( embed->tech == LSB1 || embed->tech == LSB4 )
+				out = lsbEmbedWrapper(embed);
+			else 
+				out = lsbeEmbedWrapper(embed);
+			freeEmbedStr(embed);
+		}
 
 	} else if(strcmp(argv[1],"-extract")==0) {
 		EXTRACTSTR* extract = parseExtractStr(argc,argv);
-		if ( extract->tech == LSB1 || extract->tech == LSB4 )
-			out = lsbExtractWrapper(extract);
-		else
-			out = lsbeExtractWrapper(extract);
-		freeExtractStr(extract);
-
+		if(extract != NULL) {
+			if ( extract->tech == LSB1 || extract->tech == LSB4 )
+				out = lsbExtractWrapper(extract);
+			else
+				out = lsbeExtractWrapper(extract);
+			freeExtractStr(extract);
+		}
 	} else {
 		printf("Error: invalid input. Parameters -embed or -extract expected.\n");
 	}
@@ -346,8 +345,11 @@ int main(int argc, char **argv)
 
 /* 
 gcc -o stegowav stegowav.c lsb.c bytesmanager.c wavmanager.c ciphermanager.c
-./stegowav -extract -out "data/test/funT1" -p "data/AnaTest/funT1.wav" -steg lsb1
-./stegowav -extract -out "data/test/funT4" -p "data/AnaTest/funT4.wav" -steg lsb4
-./stegowav -extract -out "data/test/funTE" -p "data/AnaTest/funTE.wav" -steg lsbE
-./stegowav -extract -out "data/test/funT1E" -p "data/AnaTest/funT1E.wav" -steg lsb1 -a "aes192" -m "cbc" -pass "oculto"
+./stegowav -extract -out "data/test/funT1" -p "data/AnaTest/funT1.wav" -steg LSB1
+./stegowav -extract -out "data/test/funT4" -p "data/AnaTest/funT4.wav" -steg LSB4
+./stegowav -extract -out "data/test/funTE" -p "data/AnaTest/funTE.wav" -steg LSBE
+./stegowav -extract -out "data/test/funT1E" -p "data/AnaTest/funT1E.wav" -steg LSB1 -a "aes192" -m "cbc" -pass "oculto"
 */
+
+
+//./stegowav -embed -in "data/data.txt" -p "data/unoaveinte.wav" -out "data/unoaveinte_1.wav" -steg LSV1

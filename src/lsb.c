@@ -322,25 +322,32 @@ int lsbExtractWrapper(EXTRACTSTR* ext) {
 		} while( i<30 && bufferExtension[i-1]!=0);
 
 	} else {
-
+		printf("%s\n", "hola");
 		int error = decrypt (ext->cipher, bufferData, len, bufferFile);
 		if (error) {
+			printf("%s\n", "hola2");
 			return !OK;
 		}
+		printf("%s\n", "hola3");
 		filelen = bigEndianBITEArrayToDWORD(bufferFile);
+		printf("%u\n", filelen);
+		printf("%s\n", bufferExtension);
+		printf("%u\n", i + filelen + sizeof(DWORD));
 		for (i=0 ; bufferFile[i + filelen + sizeof(DWORD)] != 0 ; i++) {
 			bufferExtension[i] = bufferFile[i + filelen + sizeof(DWORD)];
 		}
 		bufferExtension[i++] = 0;
 
 	}
+	printf("%s\n", "");
 
 	char* filename = malloc(strlen(ext->outfile) + i);
-
 	memcpy(filename, ext->outfile, strlen(ext->outfile));
 	memcpy(filename + strlen(ext->outfile), bufferExtension, i);
 
-	FILE* fptr = fopen("data/EPOCHout/mandauna13a.png","wb");
+	printf("%s\n", filename);
+
+	FILE* fptr = fopen(filename,"wb");
 	fwrite(bufferFile,sizeof(BYTE),filelen,fptr);
 	fclose(fptr);
 
