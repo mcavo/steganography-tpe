@@ -41,7 +41,7 @@ int decrypt_openssl(evp_cipher_function function, CIPHERSTR* cipher, BYTE* ciphe
 	return 0;
 }
 
-int encrypt_openssl(evp_cipher_function function, CIPHERSTR* cipher, BYTE* plaindata, DWORD len, BYTE* cipherdata, DWORD* cipherdatalen) {
+int encrypt_openssl(evp_cipher_function function, CIPHERSTR* cipher, BYTE* cipherdata, DWORD len, BYTE* plaindata, DWORD* cipherdatalen) {
 	EVP_CIPHER_CTX ctx;
 	BYTE out[len + CIPHER_BLOCK_SIZE];
 	DWORD templ;
@@ -54,12 +54,12 @@ int encrypt_openssl(evp_cipher_function function, CIPHERSTR* cipher, BYTE* plain
 	EVP_BytesToKey(function(), EVP_md5(), NULL, cipher->pass, strlen(cipher->pass),1, key, iv);
 	EVP_CIPHER_CTX_init(&ctx);
 	EVP_EncryptInit_ex(&ctx, function(), NULL, key, iv);
-	EVP_EncryptUpdate(&ctx, out, cipherdatalen, cipherdata, len);
+	EVP_EncryptUpdate(&ctx, out, cipherdatalen, plaindata, len);
 	EVP_EncryptFinal_ex(&ctx, out + *cipherdatalen, &templ);
 	*cipherdatalen +=templ;
 
-	DWORDTobigEndianBITEArray(*cipherdatalen, plaindata);
-	memcpy(plaindata + sizeof(DWORD), out, *cipherdatalen); 
+	DWORDTobigEndianBITEArray(*cipherdatalen, cipherdata);
+	memcpy(cipherdata + sizeof(DWORD), out, *cipherdatalen); 
 	*cipherdatalen +=sizeof(DWORD);
 	EVP_CIPHER_CTX_cleanup(&ctx);
 	return 0;
