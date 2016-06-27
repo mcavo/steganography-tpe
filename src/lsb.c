@@ -7,14 +7,14 @@ int getextensionindex(char* word);
 DWORD getLen(FILE* file);
 
 //LSB1 & LSB4
-void lsbEncrypt(WAVSTR* wav, BYTE* data, DWORD len, BYTE n) {
+void lsbEmbed(WAVSTR* wav, BYTE* data, DWORD len, BYTE n) {
 	BYTE initmask, removemask;
 	if (n == 1) {
-		initmask = 0b10000000;
-		removemask = 0b11111110;
+		initmask = 0x80;
+		removemask = 0xFE;
 	} else {
-		initmask = 0b11110000;
-		removemask = 0b11110000;
+		initmask = 0xF0;
+		removemask = 0xF0;
 	}
 	BYTE byte, mask;
 	unsigned long bytesPerSample = wav->fmt.wBitsPerSample / 8;
@@ -33,18 +33,18 @@ void lsbEncrypt(WAVSTR* wav, BYTE* data, DWORD len, BYTE n) {
 	}
 }
 
-void lsbeEncrypt(WAVSTR* wav, BYTE* data, DWORD len) {
+void lsbeEmbed(WAVSTR* wav, BYTE* data, DWORD len) {
 	unsigned long i, j, k;	
 	BYTE byte, mask;
-	BYTE initmask = 0b10000000;
+	BYTE initmask = 0x80;
 	mask = initmask;
 	for( i=0, j=0, k=0 ; i<wav->data.chunkSize && j < len; i++ ) {
-		if ( wav->data.soundData[i] >= (unsigned char) 0b11111110 ) {
-			wav->data.soundData[i] = wav->data.soundData[i] & 0b11111110;
+		if ( wav->data.soundData[i] >= (unsigned char) 0xFE ) {
+			wav->data.soundData[i] = wav->data.soundData[i] & 0xFE;
 			byte = data[j] & mask;
 			byte = byte >> (7 - k);
 			wav->data.soundData[i] = wav->data.soundData[i] | byte;
-			if ( mask == 0b00000001 ) {
+			if ( mask == 0x01 ) {
 				mask = initmask;
 				j++;
 				k = 0;
@@ -52,101 +52,152 @@ void lsbeEncrypt(WAVSTR* wav, BYTE* data, DWORD len) {
 				mask = mask >> 1;
 				k++;
 			}
-			
 		}
 	}
 }
 
-int lsbEncryptWrapper(EMBEDSTR* emb) {
-	int i, n;
+int lsbEmbedWrapper(EMBEDSTR* emb) {
+	int n, len, i;
+	DWORD bytesPerSample = emb->wav->fmt.wBitsPerSample / 8;
 	if (emb->tech == LSB1)
 		n = 1;
 	else
 		n = 4;
-	unsigned long bytesPerSample = emb->wav->fmt.wBitsPerSample / 8;
+	BYTE bufferDWORD[4];
 	FILE* file = fopen(emb->infile, "rb");
 	DWORD filelen = getLen(file);
+	BYTE bufferData[filelen];
+
 	int extindex = getextensionindex(emb->infile);
-	BYTE bufferDWORD[4];
-	DWORDTobigEndianBITEArray(filelen, bufferDWORD);
-	if ( (emb->wav->data.chunkSize / bytesPerSample)  < (filelen + 4 + strlen(emb->infile + extindex) + 1) * (8/n))
-		return NOT_ENOUGH_SPACE;
-	int datalen = filelen + 4 + strlen(emb->infile + extindex) + 1;
-	BYTE* data = malloc(datalen);
-	if (data == NULL) {
-		fclose(file);
-		return OUT_OF_MEMORY;
+	int extlen = strlen(emb->infile + extindex) + 1;
+
+	DWORD datalen = sizeof(DWORD) + filelen + extlen;
+	DWORD availableBytes = emb->wav->data.chunkSize / bytesPerSample;
+
+	if ( availableBytes  < datalen * (8/n)) {
+		printf("%s %u %s\n", "Not enough space - Max capacity:", availableBytes, "bytes.");
+		return ERROR_NOT_ENOUGH_SPACE;
 	}
-	memcpy(data, bufferDWORD, sizeof(bufferDWORD));
-	int read = 0;
-	read = fread(data + sizeof(bufferDWORD), filelen, 1, file);
-	memcpy(data + sizeof(bufferDWORD) + filelen, emb->infile + extindex, strlen(emb->infile + extindex) + 1);
-	lsbEncrypt(emb->wav, data, filelen + 4 + strlen(emb->infile + extindex) + 1, n);
-	free(data);
+
+	BYTE* data = calloc(datalen, 1);
+	BYTE* embeddata;
+
+	if (data == NULL) {
+		return ERROR_OUT_OF_MEMORY;
+	}
+
+	DWORDTobigEndianBITEArray(filelen, bufferDWORD);
+
+	memcpy(data, bufferDWORD, 4);
+	fread(bufferData, filelen, 1, file);
 	fclose(file);
+	memcpy(data + 4, bufferData, filelen);
+	memcpy(data + sizeof(DWORD) + filelen, emb->infile + extindex, extlen);
+
+	if (emb->cipher == NULL) {
+
+		embeddata = data;
+		len = datalen;
+
+	} else {
+
+		embeddata = malloc(sizeof(DWORD) + datalen + CIPHER_BLOCK_SIZE);
+		if (embeddata == NULL) {
+			free(data);
+			return ERROR_OUT_OF_MEMORY;
+		}
+
+
+		encrypt(emb->cipher, data, datalen, embeddata, &len);
+
+		free(data);
+
+	}
+
+	lsbEmbed(emb->wav, embeddata, len, n);
+	free(embeddata);
 	writeWavFile(emb->stegowav, emb->wav);
 	
 	return OK;
 }
 
-int lsbeEncryptWrapper(EMBEDSTR* emb) {
+int lsbeEmbedWrapper(EMBEDSTR* emb) {
 
 	FILE* file = fopen(emb->infile, "rb");
 	DWORD filelen = getLen(file);
 	int extindex = getextensionindex(emb->infile);
-	BYTE bufferDWORD[4];
-	DWORDTobigEndianBITEArray(filelen, bufferDWORD);
+	DWORD extlen = strlen(emb->infile + extindex) + 1;
 	unsigned long i;
 	unsigned long availableBytes=0;
 
 	for( i=0 ; i<emb->wav->data.chunkSize ; i++ ) {
-		if ( emb->wav->data.soundData[i] >= 0b11111110 ) {
+		if ( emb->wav->data.soundData[i] >= 0xFE ) {
 			availableBytes++; 
 		}
 	}
 
-	int datalen = filelen + 4 + strlen(emb->infile + extindex) + 1;
+	DWORD datalen = filelen + sizeof(DWORD) + extlen;
+	DWORD len;
 
 	if ( availableBytes <  datalen * 8 ) {
 		fclose(file);
-		return NOT_ENOUGH_SPACE;
+		printf("%s %lu %s\n", "Not enough space - Max capacity:", availableBytes, "bytes.");
+		return ERROR_NOT_ENOUGH_SPACE;
 	}
 
 
 	BYTE* data = malloc(datalen);
+	BYTE* embeddata;
+	DWORDTobigEndianBITEArray(filelen, data);
 
-	memcpy(data, bufferDWORD, sizeof(bufferDWORD));
-	int read = 0;
-	read = fread(data + sizeof(bufferDWORD), filelen, 1, file);
-	memcpy(data + sizeof(bufferDWORD) + filelen, emb->infile + extindex, strlen(emb->infile + extindex) + 1);
-	lsbeEncrypt(emb->wav, data, datalen);
-	free(data);
+	fread(data + sizeof(DWORD), filelen, 1, file);
 	fclose(file);
+
+	memcpy(data + sizeof(DWORD) + filelen, emb->infile + extindex, extlen);
+
+	if (emb->cipher == NULL) {
+
+		embeddata = data;
+		len = datalen;
+
+	} else {
+
+		embeddata = malloc(sizeof(DWORD) + datalen + CIPHER_BLOCK_SIZE);
+		if (data == NULL) {
+			free(data);
+			return ERROR_OUT_OF_MEMORY;
+		}
+
+		encrypt(emb->cipher, data, datalen, embeddata, &len);
+
+		free(data);
+
+	}
+
+	lsbeEmbed(emb->wav, embeddata, len);
+	free(embeddata);
 	writeWavFile(emb->stegowav, emb->wav);
 
 	return OK;
-
 }
 
-int lsbeDecryptWrapper(EXTRACTSTR* ext) {
+int lsbeExtractWrapper(EXTRACTSTR* ext) {
 	BYTE bufferExtension[30];
 	BYTE bufferDWORD[4];
 	unsigned long i, j, k;	
-	BYTE byte, mask;
-	BYTE initmask = 0b10000000;
-	DWORD len;
-	mask = initmask;
+	BYTE byte;
+	DWORD len, fileLen;
 	bufferDWORD[0] = 0;
 	for( i=0, j=0, k=0 ; i<ext->wav->data.chunkSize && j < 4; i++ ) {
-		if ( ext->wav->data.soundData[i] >= 0b11111110 ) {
-			byte = ext->wav->data.soundData[i] & 0b00000001;
+		if ( ext->wav->data.soundData[i] >= 0xFE ) {
+			byte = ext->wav->data.soundData[i] & 0x01;
 			byte = byte << (7 - k);
 			bufferDWORD[j] = bufferDWORD[j] | byte;
 			k++;
 			if ( k == 8 ) {
 				k = 0;
 				j++;
-				if (j<3)
+				if (j<4)
 					bufferDWORD[j] = 0;
 
 			}
@@ -154,70 +205,87 @@ int lsbeDecryptWrapper(EXTRACTSTR* ext) {
 	}
 
 	len = bigEndianBITEArrayToDWORD(bufferDWORD);
+	BYTE bufferData[len];
 	BYTE bufferFile[len];
-	bufferFile[0] = 0;
+	bufferData[0] = 0;
 	for( j=0, k=0 ; i<ext->wav->data.chunkSize && j < len; i++) {
-		if ( ext->wav->data.soundData[i] >= 0b11111110 ) {
-			byte = ext->wav->data.soundData[i] & 0b00000001;
+		if ( ext->wav->data.soundData[i] >= 0xFE ) {
+			byte = ext->wav->data.soundData[i] & 0x01;
 			byte = byte << (7 - k);
-			bufferFile[j] = bufferFile[j] | byte;
+			bufferData[j] = bufferData[j] | byte;
 			k++;
 			if ( k == 8 ) {
 				k = 0;
 				j++;
-				if (j < len - 1)
-					bufferFile[j] = 0;
+				if (j < len)
+					bufferData[j] = 0;
 			}
 		}
 	}	
 
-	j = 0;
-	do {
-		bufferExtension[j] = 0;
-		for ( k=0 ; i<ext->wav->data.chunkSize && k < 8 ; i++ ) {
-			if ( ext->wav->data.soundData[i] >= 0b11111110 ) {
-				byte = ext->wav->data.soundData[i] & 0b00000001;
-				byte = byte << (7 - k);
-				bufferExtension[j] = bufferExtension[j] | byte;
-				k++;
+	if (ext->cipher == NULL) {
+
+		memcpy(bufferFile, bufferData, len);
+		fileLen = len;
+		j = 0;
+		do {
+			bufferExtension[j] = 0;
+			for ( k=0 ; i<ext->wav->data.chunkSize && k < 8 ; i++ ) {
+				if ( ext->wav->data.soundData[i] >= 0b11111110 ) {
+					byte = ext->wav->data.soundData[i] & 0b00000001;
+					byte = byte << (7 - k);
+					bufferExtension[j] = bufferExtension[j] | byte;
+					k++;
+				}
 			}
+		} while (i<ext->wav->data.chunkSize && j<30 && bufferExtension[j++]!=0);
+
+	} else {
+		int error = decrypt (ext->cipher, bufferData, len, bufferFile);
+		if (error) {
+			return !OK;
 		}
-	} while (i<ext->wav->data.chunkSize && j<30 && bufferExtension[j++]!=0);
+		fileLen = bigEndianBITEArrayToDWORD(bufferFile);
+		memcpy(bufferFile, bufferFile+4, fileLen);
+		for (j=0 ; bufferFile[j+fileLen]!=0 ; j++) {
+			bufferExtension[j] = bufferFile[j+fileLen];
+		}
+		bufferExtension[j++] = 0;
+
+	}
 
 	char* filename = malloc(strlen(ext->outfile) + j);
 	if( filename == NULL ) {
-		return OUT_OF_MEMORY;
+		return ERROR_OUT_OF_MEMORY;
 	}
+
 	memcpy(filename, ext->outfile, strlen(ext->outfile));
 	memcpy(filename + strlen(ext->outfile), bufferExtension, j);
 
 	FILE* fptr = fopen(filename,"wb");
-	fwrite(bufferFile,sizeof(BYTE),len,fptr);
+	fwrite(bufferFile,sizeof(BYTE),fileLen,fptr);
 	fclose(fptr);
 	free(filename);
 	return OK;
-
 }
 
-int lsbDecryptWrapper(EXTRACTSTR* ext) {
-	/* Get len */
-	BYTE initmask, removemask;
+int lsbExtractWrapper(EXTRACTSTR* ext) {
+	BYTE removemask;
 	int n;
 	if (ext->tech == LSB1) {
 		n = 1;
-		initmask = 0b10000000;
-		removemask = 0b00000001;
+		removemask = 0x01;
 	} else {
 		n = 4;
-		initmask = 0b11110000;
-		removemask = 0b00001111;
+		removemask = 0x0F;
 	}
-	BYTE byte, mask;
+
+	BYTE byte;
+	DWORD len, filelen;
 	BYTE bufferDWORD[4];
-	unsigned long i,j;
 	BYTE bufferExtension[30];
-	DWORD len;
-	unsigned long bytesPerSample = ext->wav->fmt.wBitsPerSample / 8;
+	DWORD i,j;
+	DWORD bytesPerSample = ext->wav->fmt.wBitsPerSample / 8;
 	unsigned long sampleCounter = 1;
 	for(i=0 ; i<4; i++) {
 		bufferDWORD[i] = 0;
@@ -229,40 +297,210 @@ int lsbDecryptWrapper(EXTRACTSTR* ext) {
 		}
 	}
 	len = bigEndianBITEArrayToDWORD(bufferDWORD);
-	BYTE bufferFile[len];
-	for(i=0 ; i<len; i++)
-		bufferFile[i] = 0;
+	BYTE bufferData[len];
+	BYTE bufferFile[len]; 
 	for(i=0 ; i<len; i++) {
-		bufferFile[i]=0;
+		bufferData[i]=0;
 		for(j=0; j<8 ; j+=n){
 			byte = ext->wav->data.soundData[sampleCounter*bytesPerSample-1] & removemask;
 			byte = byte << (8-n-j);
-			bufferFile[i] = bufferFile[i] | byte;
+			bufferData[i] = bufferData[i] | byte;
 			sampleCounter++;
 		}
 	}
-	i=0;
-	do {
-		bufferExtension[i] = 0;
-		for(j=0; j<8 ; j+=n){
-			byte = ext->wav->data.soundData[sampleCounter*bytesPerSample-1] & removemask;
-			byte = byte << (8-n-j);
-			bufferExtension[i] = bufferExtension[i] | byte;
-			sampleCounter++;
+
+	if (ext->cipher == NULL) {
+
+		memcpy(bufferFile, bufferData, len);
+		filelen = len;
+
+		i=0;
+		do {
+			bufferExtension[i] = 0;
+			for(j=0; j<8 ; j+=n){
+				byte = ext->wav->data.soundData[sampleCounter*bytesPerSample-1] & removemask;
+				byte = byte << (8-n-j);
+				bufferExtension[i] = bufferExtension[i] | byte;
+				sampleCounter++;
+			}
+			i++;
+		} while( i<30 && bufferExtension[i-1]!=0);
+
+	} else {
+		
+		int error = decrypt (ext->cipher, bufferData, len, bufferFile);
+		if (error != OK) {
+			return !OK;
 		}
-	} while( i<30 && bufferExtension[i++]!=0);
+
+		memcpy(bufferDWORD, bufferFile, 4);
+		filelen = bigEndianBITEArrayToDWORD(bufferDWORD);
+		for (i=0 ; bufferFile[i + filelen + sizeof(DWORD)] != 0 ; i++) {
+			bufferExtension[i] = bufferFile[i + filelen + sizeof(DWORD)];
+		}
+		bufferExtension[i++] = 0;
+
+		for(j=0 ; j<filelen ; j++) {
+			bufferFile[j] = bufferFile[j+4];
+		}
+	}
+
 	char* filename = malloc(strlen(ext->outfile) + i);
-	if( filename == NULL ) {
-		return OUT_OF_MEMORY;
-	}
 	memcpy(filename, ext->outfile, strlen(ext->outfile));
 	memcpy(filename + strlen(ext->outfile), bufferExtension, i);
 
 	FILE* fptr = fopen(filename,"wb");
-	fwrite(bufferFile,sizeof(BYTE),len,fptr);
+	fwrite(bufferFile,sizeof(BYTE),filelen,fptr);
+	fclose(fptr);
+
+	return OK;
+}
+
+int lsbFitsExtract(EXTRACTSTR* ext, DWORD* availableBytes, DWORD* requiredBytes) {
+	*availableBytes = ext->wav->data.chunkSize / (ext->wav->fmt.wBitsPerSample / 8);
+	BYTE removemask;
+	int n;
+	if (ext->tech == LSB1) {
+		n = 1;
+		removemask = 0x01;
+	} else {
+		n = 4;
+		removemask = 0x0F;
+	}
+	BYTE byte;
+	BYTE bufferDWORD[4];
+	unsigned long i,j;
+	DWORD bytesPerSample = ext->wav->fmt.wBitsPerSample / 8;
+	unsigned long sampleCounter = 1;
+	for(i=0 ; i<4; i++) {
+		bufferDWORD[i] = 0;
+		for(j=0; j<8 ; j+=n){
+			byte = ext->wav->data.soundData[sampleCounter*bytesPerSample-1] & removemask;
+			byte = byte << (8-n-j);
+			bufferDWORD[i] = bufferDWORD[i] | byte;
+			sampleCounter++;
+		}
+	}
+	*requiredBytes = (bigEndianBITEArrayToDWORD(bufferDWORD) + sizeof(DWORD)) * (8/n);
+	return *availableBytes >= *requiredBytes;
+}
+
+int lsbeFitsExtract(EXTRACTSTR* ext, DWORD* availableBytes, DWORD* requiredBytes) {
+	BYTE bufferDWORD[4];
+	DWORD i, j, k;	
+	BYTE byte;
+	DWORD a = 0;
+	for( i=0 ; i<ext->wav->data.chunkSize ; i++ ) {
+		if ( ext->wav->data.soundData[i] >= 0xFE ) {
+			a++; 
+		}
+	}
+	*availableBytes = a;
+	bufferDWORD[0] = 0;
+	for( i=0, j=0, k=0 ; i<ext->wav->data.chunkSize && j < 4; i++ ) {
+		if ( ext->wav->data.soundData[i] >= 0xFE ) {
+			byte = ext->wav->data.soundData[i] & 0x01;
+			byte = byte << (7 - k);
+			bufferDWORD[j] = bufferDWORD[j] | byte;
+			k++;
+			if ( k == 8 ) {
+				k = 0;
+				j++;
+				if (j<4)
+					bufferDWORD[j] = 0;
+
+			}
+		}
+	}
+
+	*requiredBytes = (bigEndianBITEArrayToDWORD(bufferDWORD) + sizeof(DWORD)) * 8;
+
+	return *availableBytes >= *requiredBytes;
+}
+
+int lsbExtractContent(EXTRACTSTR* ext) {
+	BYTE removemask;
+	int n;
+	if (ext->tech == LSB1) {
+		n = 1;
+		removemask = 0x01;
+	} else {
+		n = 4;
+		removemask = 0x0F;
+	}
+	BYTE byte;
+	DWORD len;
+	BYTE bufferDWORD[4];
+	DWORD i,j;
+	DWORD bytesPerSample = ext->wav->fmt.wBitsPerSample / 8;
+	unsigned long sampleCounter = 1;
+	for(i=0 ; i<4; i++) {
+		bufferDWORD[i] = 0;
+		for(j=0; j<8 ; j+=n){
+			byte = ext->wav->data.soundData[sampleCounter*bytesPerSample-1] & removemask;
+			byte = byte << (8-n-j);
+			bufferDWORD[i] = bufferDWORD[i] | byte;
+			sampleCounter++;
+		}
+	}
+	len = bigEndianBITEArrayToDWORD(bufferDWORD);
+	BYTE bufferData[len]; 
+	for(i=0 ; i<len; i++) {
+		bufferData[i]=0;
+		for(j=0; j<8 ; j+=n){
+			byte = ext->wav->data.soundData[sampleCounter*bytesPerSample-1] & removemask;
+			byte = byte << (8-n-j);
+			bufferData[i] = bufferData[i] | byte;
+			sampleCounter++;
+		}
+	}
+	FILE* fptr = fopen(ext->outfile,"wb");
+	fwrite(bufferData,sizeof(BYTE),len,fptr);
 	fclose(fptr);
 	return OK;
+}
 
+int lsbeExtractContent(EXTRACTSTR* ext) {
+	BYTE bufferDWORD[4];
+	unsigned long i, j, k;	
+	BYTE byte;
+	DWORD len;
+	bufferDWORD[0] = 0;
+	for( i=0, j=0, k=0 ; i<ext->wav->data.chunkSize && j < 4; i++ ) {
+		if ( ext->wav->data.soundData[i] >= 0xFE ) {
+			byte = ext->wav->data.soundData[i] & 0x01;
+			byte = byte << (7 - k);
+			bufferDWORD[j] = bufferDWORD[j] | byte;
+			k++;
+			if ( k == 8 ) {
+				k = 0;
+				j++;
+				if (j<4)
+					bufferDWORD[j] = 0;
+			}
+		}
+	}
+	len = bigEndianBITEArrayToDWORD(bufferDWORD);
+	BYTE bufferData[len];
+	bufferData[0] = 0;
+	for( j=0, k=0 ; i<ext->wav->data.chunkSize && j < len; i++) {
+		if ( ext->wav->data.soundData[i] >= 0b11111110 ) {
+			byte = ext->wav->data.soundData[i] & 0b00000001;
+			byte = byte << (7 - k);
+			bufferData[j] = bufferData[j] | byte;
+			k++;
+			if ( k == 8 ) {
+				k = 0;
+				j++;
+				if (j < len)
+					bufferData[j] = 0;
+			}
+		}
+	}
+	FILE* fptr = fopen(ext->outfile,"wb");
+	fwrite(bufferData,sizeof(BYTE),len,fptr);
+	fclose(fptr);
+	return OK;
 }
 
 int getextensionindex(char* word) {
@@ -281,4 +519,26 @@ DWORD getLen(FILE* file) {
 	len = ftell(file);
 	rewind(file);
 	return len;
+}
+
+void freeEmbedStr(EMBEDSTR* emb) {
+	if (emb == NULL)
+		return;
+	if (emb->infile != NULL)
+		free(emb->infile);
+	if (emb->stegowav != NULL)
+		free(emb->stegowav);
+	freeWavStr(emb->wav);
+	freeCipherStr(emb->cipher);
+	free(emb);
+}
+
+void freeExtractStr(EXTRACTSTR* ext) {
+	if (ext == NULL)
+		return;
+	if (ext->outfile != NULL)
+		free(ext->outfile);
+	freeWavStr(ext->wav);
+	freeCipherStr(ext->cipher);
+	free(ext);
 }

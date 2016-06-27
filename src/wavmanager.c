@@ -7,11 +7,11 @@ getWavStr(char* wavname, WAVSTR* wavstr) {
 	FILE* wavfile = fopen(wavname, "rb");
 	if (wavfile == NULL) {
 		printf("Error opening file\n");
-		return 0;
+		return 1;
 	}
 	if (wavstr == NULL) {
 		fclose(wavfile);
-		return 0;
+		return 1;
 	}
 	BYTE bufferWORD[2];
 	BYTE bufferDWORD[4];
@@ -45,7 +45,7 @@ getWavStr(char* wavname, WAVSTR* wavstr) {
 		wavstr->fmt.extraParams = malloc(wavstr->fmt.extraParamSize);
 		if(wavstr->fmt.extraParams == NULL) {
 			fclose(wavfile);
-			return 0;
+			return 1;
 		}
 		read = fread(wavstr->fmt.extraParams, wavstr->fmt.extraParamSize, 1, wavfile);
 	}
@@ -58,11 +58,11 @@ getWavStr(char* wavname, WAVSTR* wavstr) {
 		fclose(wavfile);
 		if(wavstr->fmt.extraParams != NULL)
 			free(wavstr->fmt.extraParams);
-		return 0;
+		return 1;
 	}
 	read = fread(wavstr->data.soundData, wavstr->data.chunkSize, 1, wavfile);
 	fclose(wavfile);
-	return 1;
+	return 0;
 
 }
 
@@ -108,4 +108,15 @@ writeWavFile(char* wavname, WAVSTR* wavstr) {
 	fclose(wavfile);
 	return 1;
 
+}
+
+void freeWavStr(WAVSTR* wav) {
+	if (wav == NULL) {
+		return;
+	}
+	if (wav->fmt.extraParams != NULL)
+		free(wav->fmt.extraParams);
+	if (wav->data.soundData != NULL)
+		free(wav->data.soundData);
+	free(wav);
 }

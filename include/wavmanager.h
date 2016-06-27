@@ -39,4 +39,6 @@ typedef struct {
 int writeWavFile(char* wavfile, WAVSTR* wavstr);
 int getWavStr(char* wavfile, WAVSTR* wavstr);
 
+void freeWavStr(WAVSTR* wav);
+
 #endif
