@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
 			wav = calloc(len+1, 1);
 			memcpy(wav, argv[i+1], len);
 
-		} else if (strcmp(argv[1],"-out")==0) {
+		} else if (strcmp(argv[i],"-out")==0) {
 
 			f = fopen(argv[i+1], "rb");
 			if (f!=NULL) {
@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
 			out = calloc(len+1, 1);
 			memcpy(out, argv[i+1], len);
 
-		} else if (strcmp(argv[1],"-steg")==0) {
+		} else if (strcmp(argv[i],"-steg")==0) {
 
 			if (strcmp(argv[i+1],"LSB1")==0) {
 					technique = LSB1;
