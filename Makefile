@@ -6,3 +6,5 @@ all:
 clean:
 	rm -f stegowav
 	rm -f steganalysisFileLength
+	rm -f steganalysisFileContent
+	rm -f steganalysisEOF
