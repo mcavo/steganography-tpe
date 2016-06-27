@@ -1,4 +1,4 @@
-# Stenography
+# Steganography
 - stegowav
 
 ```
