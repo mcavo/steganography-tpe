@@ -25,17 +25,71 @@ void writeFile(char * file, char* out, int technique) {
 
 }
 
-int main() {
+int main(int argc, char **argv) {
 
-	writeFile("data/EPOCH/mamamia13.wav", "data/test/mamamia13_4", LSB4);
+	FILE* f;
+	char* wav;
+	char* out;
+	int i, technique, len;
 
-	writeFile("data/EPOCH/mamamia13a.wav", "data/test/mamamia13a_1", LSB1);	
-	writeFile("data/EPOCH/mamamia13a.wav", "data/test/mamamia13a_4", LSB4);
+	for(i = 1 ; i < 7 ; i+=2) {
+		if(i==argc) {
+			printf("%s\n", "Missing parameters.");
+			return 0;
+		}
 
-	writeFile("data/EPOCH/mandauna13a.wav", "data/test/mandauna13a_4", LSB4);
+		if(strcmp(argv[i],"-p")==0) {
 
-	writeFile("data/EPOCH/mandauna13b.wav", "data/test/mandauna13b_1", LSB1);
-	writeFile("data/EPOCH/mandauna13b.wav", "data/test/mandauna13b_E", LSBE);
+			if (strcmp(argv[i+1]+(strlen(argv[i+1]) - strlen(".wav")), ".wav") != 0) {
+				printf("%s%s%s\n", "Parameter invalid: \"", argv[i+1], "\", HAS TO be a wav file.");
+				return 0;
+			}
 
-	return 1;
+			f = fopen(argv[i+1], "rb");
+			if (f==NULL) {
+				printf("%s %s\n", "File doesn't exist:", argv[i+1]);
+				return 0;
+			}
+
+			fclose(f);
+
+			len = strlen(argv[i+1]);
+			wav = calloc(len+1, 1);
+			memcpy(wav, argv[i+1], len);
+
+		} else if (strcmp(argv[1],"-out")==0) {
+
+			f = fopen(argv[i+1], "rb");
+			if (f!=NULL) {
+				fclose(f);
+				printf("%s %s\n", "File already exist:", argv[i+1]);
+				return 0;
+			}
+
+			len = strlen(argv[i+1]);
+			out = calloc(len+1, 1);
+			memcpy(out, argv[i+1], len);
+
+		} else if (strcmp(argv[1],"-steg")==0) {
+
+			if (strcmp(argv[i+1],"LSB1")==0) {
+					technique = LSB1;
+				} else if (strcmp(argv[i+1],"LSB4")==0) {
+					technique = LSB4;
+				} else if (strcmp(argv[i+1],"LSBE")==0) {
+					technique = LSBE;
+				} else {
+					printf("%s%s%s\n", "Invalid embed technique: \"", argv[i+1], "\", HAS TO be [\"LSB1\"|\"LSB4\"|\"LSBE\"].");
+					return 0;
+				}
+
+		} else {
+			printf("%s %s\n", "Invalid parameter:", argv[i]);
+			return 0;
+		}
+	}
+
+	writeFile(wav, out, technique);
+
+	return 0;
 }

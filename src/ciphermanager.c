@@ -34,7 +34,7 @@ int decrypt_openssl(evp_cipher_function function, CIPHERSTR* cipher, BYTE* ciphe
 	EVP_CIPHER_CTX_init(&ctx);
 	EVP_DecryptInit_ex(&ctx, function(), NULL, key, iv);
 	EVP_DecryptUpdate(&ctx, out, &outl, cipherdata, len);
-	EVP_DecryptFinal_ex(&ctx, out + outl, &templ); 
+	EVP_DecryptFinal_ex(&ctx, out + outl, &templ);
 	outl +=templ;
 	memcpy(plaindata, out, outl);
 	EVP_CIPHER_CTX_cleanup(&ctx);
@@ -96,7 +96,7 @@ int decrypt_aes128 (CIPHERSTR* cipher, BYTE* cipherdata, DWORD len, BYTE* plaind
 		case ECB: 
 			return decrypt_openssl(EVP_aes_128_ecb, cipher, cipherdata, len, plaindata); 
 		case CFB: 
-			return decrypt_openssl(EVP_aes_128_cfb, cipher, cipherdata, len, plaindata);
+			return decrypt_openssl(EVP_aes_128_cfb8, cipher, cipherdata, len, plaindata);
 		case OFB: 
 			return decrypt_openssl(EVP_aes_128_ofb, cipher, cipherdata, len, plaindata); 
 		default: 
@@ -109,7 +109,7 @@ int decrypt_aes192 (CIPHERSTR* cipher, BYTE* cipherdata, DWORD len, BYTE* plaind
 		case ECB: 
 			return decrypt_openssl(EVP_aes_192_ecb, cipher, cipherdata, len, plaindata); 
 		case CFB: 
-			return decrypt_openssl(EVP_aes_192_cfb, cipher, cipherdata, len, plaindata);
+			return decrypt_openssl(EVP_aes_192_cfb8, cipher, cipherdata, len, plaindata);
 		case OFB: 
 			return decrypt_openssl(EVP_aes_192_ofb, cipher, cipherdata, len, plaindata); 
 		default: 
@@ -122,7 +122,7 @@ int decrypt_aes256 (CIPHERSTR* cipher, BYTE* cipherdata, DWORD len, BYTE* plaind
 		case ECB: 
 			return decrypt_openssl(EVP_aes_256_ecb, cipher, cipherdata, len, plaindata); 
 		case CFB: 
-			return decrypt_openssl(EVP_aes_256_cfb, cipher, cipherdata, len, plaindata);
+			return decrypt_openssl(EVP_aes_256_cfb8, cipher, cipherdata, len, plaindata);
 		case OFB: 
 			return decrypt_openssl(EVP_aes_256_ofb, cipher, cipherdata, len, plaindata); 
 		default: 
@@ -135,7 +135,7 @@ int decrypt_des (CIPHERSTR* cipher, BYTE* cipherdata, DWORD len, BYTE* plaindata
 		case ECB: 
 			return decrypt_openssl(EVP_des_ecb, cipher, cipherdata, len, plaindata); 
 		case CFB: 
-			return decrypt_openssl(EVP_des_cfb, cipher, cipherdata, len, plaindata);
+			return decrypt_openssl(EVP_des_cfb8, cipher, cipherdata, len, plaindata);
 		case OFB: 
 			return decrypt_openssl(EVP_des_ofb, cipher, cipherdata, len, plaindata); 
 		default: 
@@ -148,7 +148,7 @@ int encrypt_aes128 (CIPHERSTR* cipher, BYTE* plaindata, DWORD len, BYTE* cipherd
 		case ECB:
 			return encrypt_openssl(EVP_aes_128_ecb, cipher, plaindata, len, cipherdata, cipherdatalen); 
 		case CFB: 
-			return encrypt_openssl(EVP_aes_128_cfb, cipher, plaindata, len, cipherdata, cipherdatalen);
+			return encrypt_openssl(EVP_aes_128_cfb8, cipher, plaindata, len, cipherdata, cipherdatalen);
 		case OFB: 
 			return encrypt_openssl(EVP_aes_128_ofb, cipher, plaindata, len, cipherdata, cipherdatalen); 
 		default: 
@@ -161,7 +161,7 @@ int encrypt_aes192 (CIPHERSTR* cipher, BYTE* plaindata, DWORD len, BYTE* cipherd
 		case ECB:
 			return encrypt_openssl(EVP_aes_192_ecb, cipher, plaindata, len, cipherdata, cipherdatalen); 
 		case CFB: 
-			return encrypt_openssl(EVP_aes_192_cfb, cipher, plaindata, len, cipherdata, cipherdatalen);
+			return encrypt_openssl(EVP_aes_192_cfb8, cipher, plaindata, len, cipherdata, cipherdatalen);
 		case OFB: 
 			return encrypt_openssl(EVP_aes_192_ofb, cipher, plaindata, len, cipherdata, cipherdatalen); 
 		default: 
@@ -174,7 +174,7 @@ int encrypt_aes256 (CIPHERSTR* cipher, BYTE* plaindata, DWORD len, BYTE* cipherd
 		case ECB:
 			return encrypt_openssl(EVP_aes_256_ecb, cipher, plaindata, len, cipherdata, cipherdatalen); 
 		case CFB: 
-			return encrypt_openssl(EVP_aes_256_cfb, cipher, plaindata, len, cipherdata, cipherdatalen);
+			return encrypt_openssl(EVP_aes_256_cfb8, cipher, plaindata, len, cipherdata, cipherdatalen);
 		case OFB: 
 			return encrypt_openssl(EVP_aes_256_ofb, cipher, plaindata, len, cipherdata, cipherdatalen); 
 		default: 
@@ -187,7 +187,7 @@ int encrypt_des (CIPHERSTR* cipher, BYTE* plaindata, DWORD len, BYTE* cipherdata
 		case ECB:
 			return encrypt_openssl(EVP_des_ecb, cipher, plaindata, len, cipherdata, cipherdatalen); 
 		case CFB: 
-			return encrypt_openssl(EVP_des_cfb, cipher, plaindata, len, cipherdata, cipherdatalen);
+			return encrypt_openssl(EVP_des_cfb8, cipher, plaindata, len, cipherdata, cipherdatalen);
 		case OFB: 
 			return encrypt_openssl(EVP_des_ofb, cipher, plaindata, len, cipherdata, cipherdatalen); 
 		default: 

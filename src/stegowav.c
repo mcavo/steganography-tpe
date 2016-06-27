@@ -16,6 +16,7 @@ int validExtractStr(EXTRACTSTR* emb);
 EMBEDSTR* parseEmbedStr(int argc, char **argv) {
 	EMBEDSTR* emb = calloc(sizeof(EMBEDSTR),1);
 	if(emb == NULL) {
+		printf("%s\n", "Out of memory");
 		return emb;
 	}
 	FILE* f;
@@ -39,7 +40,7 @@ EMBEDSTR* parseEmbedStr(int argc, char **argv) {
 			} else if (strcmp(argv[i],"-p")==0) {
 
 				if (strcmp(argv[i+1]+(strlen(argv[i+1]) - strlen(".wav")), ".wav") != 0) {
-					printf("%s%s%s\n", "Parameter invalid: \"", argv[i+1], "\", MUST be a wav file.");
+					printf("%s%s%s\n", "Parameter invalid: \"", argv[i+1], "\", HAS TO be a wav file.");
 					freeEmbedStr(emb);
 					return NULL;
 				}
@@ -60,7 +61,7 @@ EMBEDSTR* parseEmbedStr(int argc, char **argv) {
 			} else if (strcmp(argv[i],"-out")==0) {
 
 				if (strcmp(argv[i+1]+(strlen(argv[i+1]) - strlen(".wav")), ".wav") != 0) {
-					printf("%s%s%s\n", "Parameter invalid: \"", argv[i+1], "\", MUST be a wav file.");
+					printf("%s%s%s\n", "Parameter invalid: \"", argv[i+1], "\", HAS TO be a wav file.");
 					freeEmbedStr(emb);
 					return NULL;
 				} 
@@ -85,7 +86,7 @@ EMBEDSTR* parseEmbedStr(int argc, char **argv) {
 				} else if (strcmp(argv[i+1],"LSBE")==0) {
 					emb->tech = LSBE;
 				} else {
-					printf("%s%s%s\n", "Invalid embed technique: \"", argv[i+1], "\", MUST be [\"LSB1\"|\"LSB4\"|\"LSBe\"].");
+					printf("%s%s%s\n", "Invalid embed technique: \"", argv[i+1], "\", HAS TO be [\"LSB1\"|\"LSB4\"|\"LSBe\"].");
 					freeEmbedStr(emb);
 					return NULL;
 				}
@@ -106,7 +107,7 @@ EMBEDSTR* parseEmbedStr(int argc, char **argv) {
 				} else if (strcmp(argv[i+1],"des")==0) {
 					emb->cipher->alg = DES;
 				} else {
-					printf("%s%s%s\n", "Invalid encrypting algorithm: \"", argv[i+1], "\", MUST be [\"aes128\"|\"aes192\"|\"aes256\"|\"des\"].");
+					printf("%s%s%s\n", "Invalid encrypting algorithm: \"", argv[i+1], "\", HAS TO be [\"aes128\"|\"aes192\"|\"aes256\"|\"des\"].");
 					freeEmbedStr(emb);
 					return NULL;
 				}
@@ -127,7 +128,7 @@ EMBEDSTR* parseEmbedStr(int argc, char **argv) {
 				} else if (strcmp(argv[i+1],"cbc")==0) {
 					emb->cipher->mode = CBC;
 				} else {
-					printf("%s%s%s\n", "Invalid encrypting mode: \"", argv[i+1], "\", MUST be [\"cfb\"|\"ecb\"|\"ofb\"|\"cbc\"].");
+					printf("%s%s%s\n", "Invalid encrypting mode: \"", argv[i+1], "\", HAS TO be [\"cfb\"|\"ecb\"|\"ofb\"|\"cbc\"].");
 					freeEmbedStr(emb);
 					return NULL;
 				}
@@ -152,7 +153,6 @@ EMBEDSTR* parseEmbedStr(int argc, char **argv) {
 
 	if (i == 1) {
 		freeEmbedStr(emb);
-		fclose(f);
 		return NULL;
 	}
 
@@ -162,20 +162,48 @@ EMBEDSTR* parseEmbedStr(int argc, char **argv) {
 
 EXTRACTSTR* parseExtractStr(int argc, char **argv) {
 
-	EXTRACTSTR* ext = calloc(sizeof(EXTRACTSTR),sizeof(char));
-	int i;
+	EXTRACTSTR* ext = calloc(sizeof(EXTRACTSTR),1);
+	if(ext == NULL) {
+		printf("%s\n", "Out of memory");
+		return ext;
+	}
+	FILE* f;
+	int i, error;
 	for (i = 2 ; i < argc ; i++) {
 		if (argv[i][0] == '-') {
 
 			if (strcmp(argv[i],"-p")==0) {
 
+				if (strcmp(argv[i+1]+(strlen(argv[i+1]) - strlen(".wav")), ".wav") != 0) {
+					printf("%s%s%s\n", "Parameter invalid: \"", argv[i+1], "\", HAS TO be a wav file.");
+					freeExtractStr(ext);
+					return NULL;
+				}
+
+				f = fopen(argv[i+1], "rb");
+				if (f==NULL) {
+					printf("%s %s\n", "File doesn't exist:", argv[i+1]);
+					freeExtractStr(ext);
+					return NULL;
+				}
+
+				fclose(f);
 				ext->wav = calloc(sizeof(WAVSTR),1);
-				getWavStr(argv[i+1],ext->wav);
-				if(ext->wav == NULL)
-					printf("%s\n", "wav null");
+				if( (error = getWavStr(argv[i+1],ext->wav)) != OK ) {
+					freeExtractStr(ext);
+					printf("%s\n", "Problemas levantando el wav");
+					return NULL;
+				}
 
 			} else if (strcmp(argv[i],"-out")==0) {
 
+				f = fopen(argv[i+1], "rb");
+				if (f!=NULL) {
+					printf("%s %s\n", "File already exist:", argv[i+1]);
+					fclose(f);
+					freeExtractStr(ext);
+					return NULL;
+				}
 				int len = strlen(argv[i+1]);
 				ext->outfile = malloc(sizeof(char)*(len+1));
 				memcpy(ext->outfile,argv[i+1],len+1);
@@ -188,8 +216,8 @@ EXTRACTSTR* parseExtractStr(int argc, char **argv) {
 				} else if (strcmp(argv[i+1],"LSBE")==0) {
 					ext->tech = LSBE;
 				} else {
+					printf("%s%s%s\n", "Invalid extract technique: \"", argv[i+1], "\", HAS TO be [\"LSB1\"|\"LSB4\"|\"LSBE\"].");
 					freeExtractStr(ext);
-					printf("%s\n", "mal LSB");
 					return NULL;
 				}
 			} else if (strcmp(argv[i],"-a")==0) {
@@ -209,6 +237,7 @@ EXTRACTSTR* parseExtractStr(int argc, char **argv) {
 				} else if (strcmp(argv[i+1],"des")==0) {
 					ext->cipher->alg = DES;
 				} else {
+					printf("%s%s%s\n", "Invalid encrypting algorithm: \"", argv[i+1], "\", HAS TO be [\"aes128\"|\"aes192\"|\"aes256\"|\"des\"].");
 					freeExtractStr(ext);
 					return NULL;
 				}
@@ -229,6 +258,7 @@ EXTRACTSTR* parseExtractStr(int argc, char **argv) {
 				} else if (strcmp(argv[i+1],"cbc")==0) {
 					ext->cipher->mode = CBC;
 				} else {
+					printf("%s%s%s\n", "Invalid encrypting mode: \"", argv[i+1], "\", HAS TO be [\"cfb\"|\"ecb\"|\"ofb\"|\"cbc\"].");
 					freeExtractStr(ext);
 					return NULL;
 				}
@@ -248,6 +278,14 @@ EXTRACTSTR* parseExtractStr(int argc, char **argv) {
 			}
 		}
 	}
+
+	i = missingExtractStrParameters(ext);
+
+	if (i == 1) {
+		freeExtractStr(ext);
+		return NULL;
+	}
+
 	return ext;
 	
 }
@@ -260,7 +298,7 @@ int missingEmbedStrParameters(EMBEDSTR* emb) {
 
 	if (emb->tech == 0) {
 		ret = 1;
-		printf("%s\n", "Parameter missing: -steg [\"LSB1\"|\"LSB4\"|\"LSBe\"]");
+		printf("%s\n", "Parameter missing: -steg [\"LSB1\"|\"LSB4\"|\"LSBE\"]");
 		return 1;
 	}
 
@@ -302,10 +340,43 @@ int missingEmbedStrParameters(EMBEDSTR* emb) {
 	return 0;
 }
 
+int missingExtractStrParameters(EXTRACTSTR* ext) {
 
-int validExtractStr(EXTRACTSTR* emb) {
-	return 0;	
+	if (ext == NULL)
+		return 1;
+
+	if (ext->tech == 0) {
+		printf("%s\n", "Parameter missing: -steg [\"LSB1\"|\"LSB4\"|\"LSBE\"]");
+		return 1;
+	}
+
+	if (ext->wav == NULL) {
+		printf("%s\n", "Parameter missing: -p \"wavefile\"");
+		return 1;
+	}
+
+	if (ext->outfile == NULL) {
+		printf("%s\n", "Parameter missing: -out \"filename\"");
+		return 1;
+	}
+
+	if (ext->cipher != NULL) {
+		if (ext->cipher->alg == 0) {
+			printf("%s\n", "Parameter missing: -a [\"aes128\"|\"aes192\"|\"aes256\"|\"des\"]");
+			return 1;
+		}
+		if (ext->cipher->mode == 0) {
+			printf("%s\n", "Parameter missing: -m [\"cfb\"|\"ecb\"|\"ofb\"|\"cbc\"]");
+			return 1;
+		}
+		if (ext->cipher->pass == NULL) {
+			printf("%s\n", "Parameter missing: -pass password");
+			return 1;
+		}
+	}
+	return 0;
 }
+
 
 
 /*********************/

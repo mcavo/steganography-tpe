@@ -1,4 +1,5 @@
 #include "../include/bytesmanager.h"
+#include <stdio.h>
 
 DWORD
 littleEndianBITEArrayToDWORD(BYTE buffer[4]) {
