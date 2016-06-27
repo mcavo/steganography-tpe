@@ -10,23 +10,23 @@ Embeber:
 - steg  	  Algoritmo de esteganografiado (LSB1, LSB4, LSBE)
 
 OPCIONALES
-- a	        Algoritmo de cifrado (aes128, aes192, aes256, des)
-- m	        Modo utilizado en el cifrado (cbc, ofb, ecb, cfb)
+- a	          Algoritmo de cifrado (aes128, aes192, aes256, des)
+- m	          Modo utilizado en el cifrado (cbc, ofb, ecb, cfb)
 - pass  	  Contraseña del cifrado 
 
 Ejemplo: ./stegowav –embed –in “data.txt” –p “audio.wav” –out “stegowav.wav” –steg “LSB1”
 ```
 ```
 Extraer:
-- extract		Indica que se utilizará stegowav para extraer información oculta.
-- p 	      Archivo wav portador
-- out		    Archivo que se va a extraer (nombre sin extensión)
-- steg	    Algoritmo de esteganografiado (LSB1, LSB4, LSBE)
+- extract     Indica que se utilizará stegowav para extraer información oculta
+- p           Archivo wav portador
+- out         Archivo que se va a extraer (nombre sin extensión)
+- steg        Algoritmo de esteganografiado (LSB1, LSB4, LSBE)
 
 OPCIONALES
-- a	        Algoritmo de cifrado (aes128, aes192, aes256, des)
-- m	        Modo utilizado en el cifrado (cbc, ofb, ecb, cfb)
-- pass	    Contraseña del cifrado 
+- a           Algoritmo de cifrado (aes128, aes192, aes256, des)
+- m           Modo utilizado en el cifrado (cbc, ofb, ecb, cfb)
+- pass        Contraseña del cifrado 
 
 Ejemplo: ./stegowav –extract –p “stegowav.wav” –out “data” –steg “LSB1”
 ```
@@ -46,9 +46,9 @@ Ejemplo: ./steganalysisFileLength "data/audio.wav"
 
 ```
 Input:
-- p 	      Archivo wav portador
-- out		    Archivo que se va a extraer (nombre sin extensión)
-- steg	    Algoritmo de esteganografiado (LSB1, LSB4, LSBE)
+- p           Archivo wav portador
+- out         Archivo que se va a extraer (nombre sin extensión)
+- steg        Algoritmo de esteganografiado (LSB1, LSB4, LSBE)
 
 Ejemplo: ./steganalysisFileContent -p "data/audio.wav" -out "data/unknown" -steg "LSB1" 
 ```
